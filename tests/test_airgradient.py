@@ -261,13 +261,13 @@ async def test_latest_version(
 ) -> None:
     """Test getting latest firmware version."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        "http://hw.airgradient.com/sensors/airgradient/generic/os/firmware",
         status=200,
         body=load_fixture("version.json"),
     )
     assert snapshot == await client.get_latest_firmware_version("84fce612f5b8")
     responses.assert_called_with(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        "http://hw.airgradient.com/sensors/airgradient/generic/os/firmware",
         headers=HEADERS,
         json=None,
     )
@@ -279,7 +279,7 @@ async def test_version_parse_error(
 ) -> None:
     """Test version parse error."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        "http://hw.airgradient.com/sensors/airgradient/generic/os/firmware",
         status=200,
         body="{}",
     )

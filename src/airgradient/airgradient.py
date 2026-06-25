@@ -166,8 +166,10 @@ class AirGradientClient:
 
     async def get_latest_firmware_version(self, serial_number: str) -> str:
         """Get the latest firmware version from AirGradient."""
+        # Keep the argument for API compatibility, but do not send device IDs.
+        del serial_number
         url = URL.build(scheme="http", host="hw.airgradient.com").joinpath(
-            f"sensors/airgradient:{serial_number}/generic/os/firmware"
+            "sensors/airgradient/generic/os/firmware"
         )
         response = await self._request(url)
         try:
