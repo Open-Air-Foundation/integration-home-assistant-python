@@ -66,6 +66,14 @@ class TemperatureUnit(StrEnum):
     FAHRENHEIT = "f"
 
 
+class GpsMode(StrEnum):
+    """GPS operating mode."""
+
+    OFF = "off"
+    TRACKING = "tracking"
+    ALWAYS = "always"
+
+
 class ConfigurationControl(StrEnum):
     """Configuration control model."""
 
@@ -156,6 +164,13 @@ class Config:
     nox_learning_offset: int | None = None
     tvoc_learning_offset: int | None = None
     cloud_connection: bool | None = None
+    measurement_interval: int | None = None
+    gps_mode: GpsMode | None = None
+    gps_interval: int | None = None
+    front_led_brightness: int | None = None
+    back_led_brightness: int | None = None
+    touch_led_intensity: int | None = None
+    buzzer_enabled: bool | None = None
     corrections: Corrections | None = None
 
 

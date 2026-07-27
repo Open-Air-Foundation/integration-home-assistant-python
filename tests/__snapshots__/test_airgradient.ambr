@@ -1,18 +1,25 @@
 # serializer version: 1
 # name: test_config
   dict({
+    'back_led_brightness': None,
+    'buzzer_enabled': None,
     'cloud_connection': None,
     'co2_automatic_baseline_calibration_days': 8,
     'configuration_control': <ConfigurationControl.BOTH: 'both'>,
     'corrections': None,
     'country': 'DE',
     'display_brightness': 0,
+    'front_led_brightness': None,
+    'gps_interval': None,
+    'gps_mode': None,
     'led_bar_brightness': 100,
     'led_bar_mode': <LedBarMode.CO2: 'co2'>,
+    'measurement_interval': None,
     'nox_learning_offset': 12,
     'pm_standard': <PmStandard.UGM3: 'ugm3'>,
     'post_data_to_airgradient': True,
     'temperature_unit': <TemperatureUnit.CELSIUS: 'c'>,
+    'touch_led_intensity': None,
     'tvoc_learning_offset': 12,
   })
 # ---

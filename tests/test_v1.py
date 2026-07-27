@@ -22,6 +22,7 @@ from airgradient import (
     ApiVersion,
     ConfigurationControl,
     CorrectionAlgorithm,
+    GpsMode,
     LedBarMode,
     Measures,
     PmStandard,
@@ -217,6 +218,13 @@ async def test_v1_go_config(responses: aioresponses) -> None:
 
     assert config.pm_standard is PmStandard.UGM3
     assert config.temperature_unit is TemperatureUnit.CELSIUS
+    assert config.measurement_interval == 10
+    assert config.gps_mode is GpsMode.TRACKING
+    assert config.gps_interval == 5
+    assert config.front_led_brightness == 1
+    assert config.back_led_brightness == 2
+    assert config.touch_led_intensity == 2
+    assert config.buzzer_enabled is True
     assert config.cloud_connection is True
     assert config.post_data_to_airgradient is None
     assert config.configuration_control is ConfigurationControl.BOTH
@@ -242,6 +250,33 @@ async def test_v1_go_config(responses: aioresponses) -> None:
     assert config.corrections.humidity.slr is None
 
 
+async def test_v1_go_config_zero_values(responses: aioresponses) -> None:
+    """Test valid zero-valued Go config fields."""
+    add_v1_probe(responses)
+    responses.get(
+        f"{MOCK_URL}/api/v1/config",
+        payload={
+            "measurementInterval": 1,
+            "gpsMode": "off",
+            "gpsInterval": 1,
+            "frontLedBrightness": 0,
+            "backLedBrightness": 0,
+            "touchLedIntensity": 0,
+            "buzzerEnabled": False,
+        },
+    )
+    async with v1_client() as client:
+        config = await client.get_config()
+
+    assert config.measurement_interval == 1
+    assert config.gps_mode is GpsMode.OFF
+    assert config.gps_interval == 1
+    assert config.front_led_brightness == 0
+    assert config.back_led_brightness == 0
+    assert config.touch_led_intensity == 0
+    assert config.buzzer_enabled is False
+
+
 async def test_v1_partial_config(responses: aioresponses) -> None:
     """Test partial generic V1 config normalization."""
     add_v1_probe(responses)
@@ -257,6 +292,13 @@ async def test_v1_partial_config(responses: aioresponses) -> None:
     assert config.co2_automatic_baseline_calibration_days == 8
     assert config.pm_standard is None
     assert config.cloud_connection is None
+    assert config.measurement_interval is None
+    assert config.gps_mode is None
+    assert config.gps_interval is None
+    assert config.front_led_brightness is None
+    assert config.back_led_brightness is None
+    assert config.touch_led_intensity is None
+    assert config.buzzer_enabled is None
 
 
 async def test_v1_config_ignores_unknown_fields(responses: aioresponses) -> None:

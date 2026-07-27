@@ -11,6 +11,7 @@ from airgradient import (
     ApiVersion,
     Config,
     Corrections,
+    GpsMode,
     Measures,
     PmStandard,
     parse_config_json,
@@ -81,6 +82,13 @@ def test_parse_v1_config() -> None:
     )
     assert config.country is None
     assert config.pm_standard is PmStandard.UGM3
+    assert config.measurement_interval == 10
+    assert config.gps_mode is GpsMode.TRACKING
+    assert config.gps_interval == 5
+    assert config.front_led_brightness == 1
+    assert config.back_led_brightness == 2
+    assert config.touch_led_intensity == 2
+    assert config.buzzer_enabled is True
     assert config.cloud_connection is True
     assert config.co2_automatic_baseline_calibration_days == 7
     assert config.tvoc_learning_offset == 12
@@ -89,6 +97,16 @@ def test_parse_v1_config() -> None:
     assert config.corrections.temperature is not None
     assert config.corrections.temperature.slr is not None
     assert config.corrections.temperature.slr.scaling_factor == 1.1
+
+
+@pytest.mark.parametrize("gps_mode", list(GpsMode))
+def test_parse_v1_gps_modes(gps_mode: GpsMode) -> None:
+    """Test parsing every V1 GPS mode."""
+    config = parse_config_json(
+        f'{{"gpsMode":"{gps_mode.value}"}}',
+        api_version=ApiVersion.V1,
+    )
+    assert config.gps_mode is gps_mode
 
 
 @pytest.mark.parametrize(

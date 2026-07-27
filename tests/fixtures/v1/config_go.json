@@ -1,6 +1,13 @@
 {
     "pmStandard": "ugm3",
     "temperatureUnit": "c",
+    "measurementInterval": 10,
+    "gpsMode": "tracking",
+    "gpsInterval": 5,
+    "frontLedBrightness": 1,
+    "backLedBrightness": 2,
+    "touchLedIntensity": 2,
+    "buzzerEnabled": true,
     "cloudConnection": true,
     "configurationControl": "both",
     "co2AbcDays": 7,

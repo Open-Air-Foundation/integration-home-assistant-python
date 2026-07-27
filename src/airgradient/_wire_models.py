@@ -13,6 +13,7 @@ from .models import (
     CorrectionAlgorithm,
     Corrections,
     CorrectionSlr,
+    GpsMode,
     HumidityCorrection,
     LedBarMode,
     Measures,
@@ -379,6 +380,27 @@ class _V1Config(DataClassORJSONMixin):
     cloud_connection: bool | None = field(
         default=None, metadata=field_options(alias="cloudConnection")
     )
+    measurement_interval: int | None = field(
+        default=None, metadata=field_options(alias="measurementInterval")
+    )
+    gps_mode: GpsMode | None = field(
+        default=None, metadata=field_options(alias="gpsMode")
+    )
+    gps_interval: int | None = field(
+        default=None, metadata=field_options(alias="gpsInterval")
+    )
+    front_led_brightness: int | None = field(
+        default=None, metadata=field_options(alias="frontLedBrightness")
+    )
+    back_led_brightness: int | None = field(
+        default=None, metadata=field_options(alias="backLedBrightness")
+    )
+    touch_led_intensity: int | None = field(
+        default=None, metadata=field_options(alias="touchLedIntensity")
+    )
+    buzzer_enabled: bool | None = field(
+        default=None, metadata=field_options(alias="buzzerEnabled")
+    )
     corrections: _Corrections | None = None
 
     def normalize(self) -> Config:
@@ -396,6 +418,13 @@ class _V1Config(DataClassORJSONMixin):
             nox_learning_offset=self.nox_learning_offset,
             tvoc_learning_offset=self.tvoc_learning_offset,
             cloud_connection=self.cloud_connection,
+            measurement_interval=self.measurement_interval,
+            gps_mode=self.gps_mode,
+            gps_interval=self.gps_interval,
+            front_led_brightness=self.front_led_brightness,
+            back_led_brightness=self.back_led_brightness,
+            touch_led_intensity=self.touch_led_intensity,
+            buzzer_enabled=self.buzzer_enabled,
             corrections=(
                 self.corrections.normalize() if self.corrections is not None else None
             ),
