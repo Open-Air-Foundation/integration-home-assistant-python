@@ -3,6 +3,9 @@
     "temperatureUnit": "c",
     "cloudConnection": true,
     "configurationControl": "both",
+    "co2AbcDays": 7,
+    "tvocLearningOffset": 12,
+    "noxLearningOffset": 12,
     "corrections": {
         "pm25": {
             "correctionAlgorithm": "custom_via_pm25_raw",
@@ -12,7 +15,7 @@
                 "useEpa2021": true
             }
         },
-        "temp": {
+        "temperature": {
             "correctionAlgorithm": "custom",
             "slr": {
                 "intercept": -1.0,

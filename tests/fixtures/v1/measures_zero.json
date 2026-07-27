@@ -14,7 +14,7 @@
     "pm02Count": 0,
     "pm50Count": 0,
     "pm10Count": 0,
-    "temp": 0,
+    "temperature": 0,
     "humidity": 0,
     "tvocIndex": 0,
     "tvocRaw": 0,

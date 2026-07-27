@@ -14,7 +14,7 @@
     "pm02Count": 70,
     "pm50Count": 60,
     "pm10Count": 50,
-    "temp": 21.5,
+    "temperature": 21.5,
     "humidity": 48.25,
     "tvocIndex": 101,
     "tvocRaw": 32100,

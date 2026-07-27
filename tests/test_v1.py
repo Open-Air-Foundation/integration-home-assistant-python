@@ -220,6 +220,9 @@ async def test_v1_go_config(responses: aioresponses) -> None:
     assert config.cloud_connection is True
     assert config.post_data_to_airgradient is None
     assert config.configuration_control is ConfigurationControl.BOTH
+    assert config.co2_automatic_baseline_calibration_days == 7
+    assert config.tvoc_learning_offset == 12
+    assert config.nox_learning_offset == 12
     assert ConfigurationControl.NOT_INITIALIZED is ConfigurationControl.BOTH
     assert config.corrections is not None
     assert config.corrections.pm25 is not None
@@ -280,7 +283,7 @@ async def test_v1_additional_correction_algorithms(
             "configurationControl": "cloud",
             "corrections": {
                 "pm25": {"correctionAlgorithm": "epa_2021", "slr": None},
-                "temp": {"correctionAlgorithm": "none", "slr": None},
+                "temperature": {"correctionAlgorithm": "none", "slr": None},
                 "humidity": {
                     "correctionAlgorithm": "custom",
                     "slr": {"intercept": 2.0, "scalingFactor": 0.9},
@@ -316,7 +319,7 @@ async def test_v1_none_corrections(responses: aioresponses) -> None:
         payload={
             "corrections": {
                 "pm25": {"correctionAlgorithm": "none", "slr": None},
-                "temp": {"correctionAlgorithm": "none", "slr": None},
+                "temperature": {"correctionAlgorithm": "none", "slr": None},
                 "humidity": {"correctionAlgorithm": "none", "slr": None},
             }
         },

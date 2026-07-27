@@ -149,7 +149,7 @@ class _V1Measures(DataClassORJSONMixin):
         default=None, metadata=field_options(alias="pm10Count")
     )
     temperature: float | None = field(
-        default=None, metadata=field_options(alias="temp")
+        default=None, metadata=field_options(alias="temperature")
     )
     humidity: float | None = None
     tvoc_index: int | None = field(
@@ -326,7 +326,7 @@ class _Corrections:
 
     pm25: _Pm25Correction | None = None
     temperature: _TemperatureCorrection | None = field(
-        default=None, metadata=field_options(alias="temp")
+        default=None, metadata=field_options(alias="temperature")
     )
     humidity: _HumidityCorrection | None = None
 

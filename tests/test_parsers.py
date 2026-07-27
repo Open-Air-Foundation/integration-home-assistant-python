@@ -57,6 +57,7 @@ def test_parse_v1_measures() -> None:
     )
     assert measures.model == "P-1PSG"
     assert measures.pm02 == 2.5
+    assert measures.ambient_temperature == 21.5
     assert measures.pm005_count == 90
     assert measures.raw_pm02 is None
 
@@ -81,6 +82,9 @@ def test_parse_v1_config() -> None:
     assert config.country is None
     assert config.pm_standard is PmStandard.UGM3
     assert config.cloud_connection is True
+    assert config.co2_automatic_baseline_calibration_days == 7
+    assert config.tvoc_learning_offset == 12
+    assert config.nox_learning_offset == 12
     assert config.corrections is not None
     assert config.corrections.temperature is not None
     assert config.corrections.temperature.slr is not None
