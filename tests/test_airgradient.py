@@ -3,21 +3,26 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import is_dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from aiohttp import ClientError
-from aiohttp.hdrs import METH_PUT
+from aiohttp.hdrs import METH_GET, METH_PUT
 from aioresponses import CallbackResult, aioresponses
 import pytest
+from yarl import URL
 
 from airgradient import (
     AirGradientClient,
     AirGradientConnectionError,
     AirGradientError,
+    AirGradientNotSupportedError,
     AirGradientParseError,
+    ApiVersion,
     ConfigurationControl,
     LedBarMode,
+    Measures,
     PmStandard,
     TemperatureUnit,
 )
@@ -40,11 +45,10 @@ async def test_putting_in_own_session(
         body=load_fixture("current_measures.json"),
     )
     async with aiohttp.ClientSession() as session:
-        airgradient = AirGradientClient(session=session, host=MOCK_HOST)
-        await airgradient.get_current_measures()
-        assert airgradient.session is not None
-        assert not airgradient.session.closed
-        await airgradient.close()
+        async with AirGradientClient(session=session, host=MOCK_HOST) as airgradient:
+            await airgradient.get_current_measures()
+            assert airgradient.session is not None
+            assert not airgradient.session.closed
         assert not airgradient.session.closed
 
 
@@ -57,12 +61,20 @@ async def test_creating_own_session(
         status=200,
         body=load_fixture("current_measures.json"),
     )
-    airgradient = AirGradientClient(host=MOCK_HOST)
-    await airgradient.get_current_measures()
+    async with AirGradientClient(host=MOCK_HOST) as airgradient:
+        await airgradient.get_current_measures()
+        assert airgradient.session is not None
+        assert not airgradient.session.closed
     assert airgradient.session is not None
-    assert not airgradient.session.closed
-    await airgradient.close()
     assert airgradient.session.closed
+
+
+def test_client_retains_dataclass_behavior() -> None:
+    """Test compatibility with the previous dataclass client."""
+    client = AirGradientClient(MOCK_HOST)
+    replacement = replace(client, host="192.168.0.31")
+    assert is_dataclass(client)
+    assert replacement.host == "192.168.0.31"
 
 
 async def test_unexpected_server_response(
@@ -76,6 +88,7 @@ async def test_unexpected_server_response(
         headers={"Content-Type": "plain/text"},
         body="Yes",
     )
+    responses.get(f"{MOCK_URL}/api/v1/measures", status=404, body="Not found")
     with pytest.raises(AirGradientError):
         await client.get_current_measures()
 
@@ -97,6 +110,10 @@ async def test_unexpected_server_json_response(
     with pytest.raises(AirGradientParseError):
         await client.get_current_measures()
 
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("current_measures.json"),
+    )
     responses.get(
         f"{MOCK_URL}/config",
         callback=response_handler,
@@ -123,6 +140,7 @@ async def test_timeout(
     async with AirGradientClient(request_timeout=1, host=MOCK_HOST) as airgradient:
         with pytest.raises(AirGradientConnectionError):
             await airgradient.get_current_measures()
+    assert (METH_GET, URL(f"{MOCK_URL}/api/v1/measures")) not in responses.requests
 
 
 async def test_client_error(
@@ -141,6 +159,7 @@ async def test_client_error(
     )
     with pytest.raises(AirGradientConnectionError):
         await client.get_current_measures()
+    assert (METH_GET, URL(f"{MOCK_URL}/api/v1/measures")) not in responses.requests
 
 
 @pytest.mark.parametrize(
@@ -165,6 +184,46 @@ async def test_current_fixtures(
         body=load_fixture(fixture),
     )
     assert await client.get_current_measures() == snapshot
+    assert client.api_version is ApiVersion.LEGACY
+
+
+async def test_legacy_boot_count_fallback(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test legacy bootCount fallback for older devices."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("legacy_boot_count_only.json"),
+    )
+    measures = await client.get_current_measures()
+    assert measures.boot_time == 4
+
+
+async def test_legacy_requires_boot_or_boot_count(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test that legacy measures require one uptime field."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        payload={
+            "wifi": -52,
+            "serialno": "84fce612f5b8",
+            "firmware": "3.1.1",
+            "model": "I-9PSL",
+        },
+    )
+    with pytest.raises(AirGradientParseError):
+        await client.get_current_measures()
+
+
+def test_measures_retains_positional_identity_fields() -> None:
+    """Test compatibility with the previous positional constructor order."""
+    measures = Measures(None, "serial", 1, "firmware", "model")
+    assert measures.signal_strength is None
+    assert measures.serial_number == "serial"
+    assert measures.boot_time == 1
 
 
 async def test_config(
@@ -173,6 +232,11 @@ async def test_config(
     snapshot: SnapshotAssertion,
 ) -> None:
     """Test config call."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        status=200,
+        body=load_fixture("current_measures.json"),
+    )
     responses.get(
         f"{MOCK_URL}/config",
         status=200,
@@ -247,13 +311,32 @@ async def test_setting_config(
         body="Success",
         headers={"Content-Type": "plain/text"},
     )
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        status=200,
+        body=load_fixture("current_measures.json"),
+    )
     await function(client)
-    responses.assert_called_once_with(
+    responses.assert_called_with(
         f"{MOCK_URL}/config",
         METH_PUT,
         headers=HEADERS,
         json=expected_data,
     )
+    assert len(responses.requests[(METH_PUT, URL(f"{MOCK_URL}/config"))]) == 1
+
+
+async def test_cloud_connection_not_supported_by_legacy(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test that cloud connection is distinct from legacy data sharing."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("current_measures.json"),
+    )
+    with pytest.raises(AirGradientNotSupportedError):
+        await client.set_cloud_connection(True)
 
 
 async def test_latest_version(

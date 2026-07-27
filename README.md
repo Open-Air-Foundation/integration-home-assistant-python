@@ -9,7 +9,7 @@
 [![Build Status][build-shield]][build]
 [![Code Coverage][codecov-shield]][codecov]
 
-Asynchronous Python client for AirGradient.
+Asynchronous Python client for the legacy and versioned AirGradient Local APIs.
 
 ## About
 
@@ -39,6 +39,44 @@ async def main() -> None:
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+The client probes the Local API once, when the first device operation is made.
+An optional `ApiVersion` hint changes which route is tried first, but the
+version is selected only after a measures response succeeds and parses. The
+selected version is available through the read-only `api_version` property and
+does not change for that client instance.
+
+```python
+from airgradient import AirGradientClient, ApiVersion
+
+client = AirGradientClient("10.0.0.123", api_version=ApiVersion.V1)
+```
+
+Public measures, config, and correction models are normalized plain dataclasses.
+To normalize a raw payload whose Local API version is already known, use the
+versioned parsing helpers:
+
+```python
+from airgradient import ApiVersion, parse_config_json, parse_measures_json
+
+measures = parse_measures_json(payload, api_version=ApiVersion.V1)
+config = parse_config_json(config_payload, api_version=ApiVersion.V1)
+```
+
+The API version is required because isolated config payloads cannot always be
+distinguished by their fields. Public normalized models do not expose wire
+serialization methods such as `from_json()` or `to_json()`.
+
+Configuration setters return when the device admits the request: legacy
+devices respond with `200`, while V1 devices respond with `202`. Admission does
+not guarantee that an asynchronous update has already been persisted or
+activated. The library does not retry busy requests or poll for convergence.
+Callers should handle `AirGradientBusyError`, `AirGradientForbiddenError`, and
+`AirGradientNotSupportedError` as appropriate.
+
+When a caller provides an `aiohttp.ClientSession`, the caller retains ownership
+and must close it. A session created internally by `AirGradientClient` is closed
+by `close()` or on async context-manager exit.
 
 ## Changelog & Releases
 

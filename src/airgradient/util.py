@@ -9,6 +9,8 @@ def get_model_name(model_id: str) -> str | None:
         return "AirGradient ONE"
     if model_id.startswith("O-1"):
         return "AirGradient Open Air"
+    if model_id.startswith("P-1PSG"):
+        return "AirGradient Go"
     if "DIY" in model_id:
         return "AirGradient DIY"
     return None

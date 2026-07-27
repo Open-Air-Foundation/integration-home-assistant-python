@@ -1,0 +1,27 @@
+{
+    "pmStandard": "ugm3",
+    "temperatureUnit": "c",
+    "cloudConnection": true,
+    "configurationControl": "both",
+    "corrections": {
+        "pm25": {
+            "correctionAlgorithm": "custom_via_pm25_raw",
+            "slr": {
+                "intercept": 1.5,
+                "scalingFactor": 0.75,
+                "useEpa2021": true
+            }
+        },
+        "temp": {
+            "correctionAlgorithm": "custom",
+            "slr": {
+                "intercept": -1.0,
+                "scalingFactor": 1.1
+            }
+        },
+        "humidity": {
+            "correctionAlgorithm": "none",
+            "slr": null
+        }
+    }
+}
