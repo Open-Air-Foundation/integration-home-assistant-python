@@ -21,6 +21,7 @@ from airgradient import (
     AirGradientParseError,
     ApiVersion,
     ConfigurationControl,
+    GpsMode,
     LedBarMode,
     Measures,
     PmStandard,
@@ -326,17 +327,35 @@ async def test_setting_config(
     assert len(responses.requests[(METH_PUT, URL(f"{MOCK_URL}/config"))]) == 1
 
 
-async def test_cloud_connection_not_supported_by_legacy(
+@pytest.mark.parametrize(
+    "function",
+    [
+        lambda client: client.set_cloud_connection(True),
+        lambda client: client.set_measurement_interval(30),
+        lambda client: client.set_gps_mode(GpsMode.TRACKING),
+        lambda client: client.set_gps_interval(15),
+        lambda client: client.set_front_led_brightness(3),
+        lambda client: client.set_back_led_brightness(2),
+        lambda client: client.set_touch_led_intensity(1),
+        lambda client: client.set_buzzer_enabled(True),
+    ],
+)
+async def test_v1_config_not_supported_by_legacy(
     responses: aioresponses,
     client: AirGradientClient,
+    function: Callable[[AirGradientClient], Awaitable[None]],
 ) -> None:
-    """Test that cloud connection is distinct from legacy data sharing."""
+    """Test that V1-only config is rejected by the legacy backend."""
     responses.get(
         f"{MOCK_URL}/measures/current",
         body=load_fixture("current_measures.json"),
     )
-    with pytest.raises(AirGradientNotSupportedError):
-        await client.set_cloud_connection(True)
+    with pytest.raises(AirGradientNotSupportedError) as raised:
+        await function(client)
+
+    assert raised.value.status == 404
+    assert raised.value.code == "not_found"
+    assert (METH_PUT, URL(f"{MOCK_URL}/config")) not in responses.requests
 
 
 async def test_latest_version(

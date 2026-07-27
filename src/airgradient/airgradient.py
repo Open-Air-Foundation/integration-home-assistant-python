@@ -28,6 +28,7 @@ from .models import (
     ApiVersion,
     Config,
     ConfigurationControl,
+    GpsMode,
     LedBarMode,
     Measures,
     PmStandard,
@@ -90,10 +91,17 @@ class _Backend:
 
     async def set_config(self, field: str, value: Any) -> None:
         """Set one normalized config field."""
+        wire_field = self.config_fields.get(field)
+        if wire_field is None:
+            raise AirGradientNotSupportedError(
+                status=404,
+                code="not_found",
+                message=f"{field} is not supported by the selected API",
+            )
         await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
             self.config_path,
             method=METH_PUT,
-            data={self.config_fields[field]: value},
+            data={wire_field: value},
             expected_status=self.config_status,
             api_version=self.api_version,
         )
@@ -189,6 +197,13 @@ class _V1Backend(_Backend):
         "nox_learning_offset": "noxLearningOffset",
         "tvoc_learning_offset": "tvocLearningOffset",
         "cloud_connection": "cloudConnection",
+        "measurement_interval": "measurementInterval",
+        "gps_mode": "gpsMode",
+        "gps_interval": "gpsInterval",
+        "front_led_brightness": "frontLedBrightness",
+        "back_led_brightness": "backLedBrightness",
+        "touch_led_intensity": "touchLedIntensity",
+        "buzzer_enabled": "buzzerEnabled",
     }
 
     def _parse_measures(self, body: str) -> Measures:
@@ -514,6 +529,34 @@ class AirGradientClient:
         """Enable or disable the V1 product cloud connection."""
         backend = await self._ensure_backend()
         await backend.set_cloud_connection(enabled)
+
+    async def set_measurement_interval(self, interval: int) -> None:
+        """Set the V1 measurement interval in seconds."""
+        await self._set_config("measurement_interval", interval)
+
+    async def set_gps_mode(self, gps_mode: GpsMode) -> None:
+        """Set the V1 GPS operating mode."""
+        await self._set_config("gps_mode", gps_mode)
+
+    async def set_gps_interval(self, interval: int) -> None:
+        """Set the V1 GPS interval in seconds."""
+        await self._set_config("gps_interval", interval)
+
+    async def set_front_led_brightness(self, brightness: int) -> None:
+        """Set the V1 front LED brightness."""
+        await self._set_config("front_led_brightness", brightness)
+
+    async def set_back_led_brightness(self, brightness: int) -> None:
+        """Set the V1 back LED brightness."""
+        await self._set_config("back_led_brightness", brightness)
+
+    async def set_touch_led_intensity(self, intensity: int) -> None:
+        """Set the V1 touch LED intensity."""
+        await self._set_config("touch_led_intensity", intensity)
+
+    async def set_buzzer_enabled(self, enabled: bool) -> None:  # noqa: FBT001
+        """Enable or disable the V1 buzzer."""
+        await self._set_config("buzzer_enabled", enabled)
 
     async def get_latest_firmware_version(self, serial_number: str) -> str:
         """Get the latest firmware version from AirGradient."""
