@@ -78,6 +78,80 @@ When a caller provides an `aiohttp.ClientSession`, the caller retains ownership
 and must close it. A session created internally by `AirGradientClient` is closed
 by `close()` or on async context-manager exit.
 
+### Local checkout example
+
+`poetry install` installs the checkout into its virtual environment, so scripts
+in other repository folders can import `AirGradientClient` normally when run
+through `poetry run`.
+
+Read a device by IP address:
+
+```bash
+poetry run python examples/read_local_api.py --ip 192.168.1.123
+```
+
+Or build its mDNS hostname from the serial number:
+
+```bash
+poetry run python examples/read_local_api.py --serial 84fce612f5b8
+```
+
+The serial form connects to `airgradient_<serial>.local`, verifies that the
+returned measures serial matches, and prints the detected API version,
+normalized measures, and normalized config. Without `--put-config`,
+`--calibrate-co2`, or `--test-leds`, it performs only read requests.
+
+Config writes are disabled by default. Enable them explicitly with
+`--put-config` and one or more typed config options:
+
+```bash
+poetry run python examples/read_local_api.py \
+  --serial 84fce612f5b8 \
+  --put-config \
+  --pm-standard ugm3 \
+  --temperature-unit c
+```
+
+Boolean options support positive and negative forms, for example
+`--cloud-connection` and `--no-cloud-connection`. Each supplied value is sent
+as a separate partial config request through the public client setter. The
+printed post-write config is an immediate refresh and may still show the old
+value because V1 config updates are asynchronous.
+
+Go-specific options include the measurement interval, GPS mode, front and back
+LED brightness, touch LED intensity, and buzzer state. For example:
+
+```bash
+poetry run python examples/read_local_api.py \
+  --serial 84fce612f5b8 \
+  --put-config \
+  --measurement-interval 30 \
+  --gps-mode tracking \
+  --buzzer-enabled
+```
+
+CO2 calibration is also disabled by default and requires an explicit flag:
+
+```bash
+poetry run python examples/read_local_api.py \
+  --serial 84fce612f5b8 \
+  --calibrate-co2
+```
+
+This submits a real calibration request through
+`AirGradientClient.request_co2_calibration()`.
+
+The LED test is similarly opt-in:
+
+```bash
+poetry run python examples/read_local_api.py \
+  --serial 84fce612f5b8 \
+  --test-leds
+```
+
+This submits a real LED-test request through
+`AirGradientClient.request_led_bar_test()`.
+
 ## Changelog & Releases
 
 This repository keeps a change log using [GitHub's releases][releases]
