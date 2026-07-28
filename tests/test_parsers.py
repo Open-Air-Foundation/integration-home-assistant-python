@@ -84,7 +84,6 @@ def test_parse_v1_config() -> None:
     assert config.pm_standard is PmStandard.UGM3
     assert config.measurement_interval == 10
     assert config.gps_mode is GpsMode.TRACKING
-    assert config.gps_interval == 5
     assert config.front_led_brightness == 1
     assert config.back_led_brightness == 2
     assert config.touch_led_intensity == 2

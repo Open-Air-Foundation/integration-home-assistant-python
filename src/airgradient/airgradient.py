@@ -199,7 +199,6 @@ class _V1Backend(_Backend):
         "cloud_connection": "cloudConnection",
         "measurement_interval": "measurementInterval",
         "gps_mode": "gpsMode",
-        "gps_interval": "gpsInterval",
         "front_led_brightness": "frontLedBrightness",
         "back_led_brightness": "backLedBrightness",
         "touch_led_intensity": "touchLedIntensity",
@@ -537,10 +536,6 @@ class AirGradientClient:
     async def set_gps_mode(self, gps_mode: GpsMode) -> None:
         """Set the V1 GPS operating mode."""
         await self._set_config("gps_mode", gps_mode)
-
-    async def set_gps_interval(self, interval: int) -> None:
-        """Set the V1 GPS interval in seconds."""
-        await self._set_config("gps_interval", interval)
 
     async def set_front_led_brightness(self, brightness: int) -> None:
         """Set the V1 front LED brightness."""

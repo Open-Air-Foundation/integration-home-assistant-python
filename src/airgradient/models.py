@@ -166,7 +166,6 @@ class Config:
     cloud_connection: bool | None = None
     measurement_interval: int | None = None
     gps_mode: GpsMode | None = None
-    gps_interval: int | None = None
     front_led_brightness: int | None = None
     back_led_brightness: int | None = None
     touch_led_intensity: int | None = None

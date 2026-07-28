@@ -220,7 +220,6 @@ async def test_v1_go_config(responses: aioresponses) -> None:
     assert config.temperature_unit is TemperatureUnit.CELSIUS
     assert config.measurement_interval == 10
     assert config.gps_mode is GpsMode.TRACKING
-    assert config.gps_interval == 5
     assert config.front_led_brightness == 1
     assert config.back_led_brightness == 2
     assert config.touch_led_intensity == 2
@@ -258,7 +257,6 @@ async def test_v1_go_config_zero_values(responses: aioresponses) -> None:
         payload={
             "measurementInterval": 1,
             "gpsMode": "off",
-            "gpsInterval": 1,
             "frontLedBrightness": 0,
             "backLedBrightness": 0,
             "touchLedIntensity": 0,
@@ -270,7 +268,6 @@ async def test_v1_go_config_zero_values(responses: aioresponses) -> None:
 
     assert config.measurement_interval == 1
     assert config.gps_mode is GpsMode.OFF
-    assert config.gps_interval == 1
     assert config.front_led_brightness == 0
     assert config.back_led_brightness == 0
     assert config.touch_led_intensity == 0
@@ -294,7 +291,6 @@ async def test_v1_partial_config(responses: aioresponses) -> None:
     assert config.cloud_connection is None
     assert config.measurement_interval is None
     assert config.gps_mode is None
-    assert config.gps_interval is None
     assert config.front_led_brightness is None
     assert config.back_led_brightness is None
     assert config.touch_led_intensity is None
@@ -470,13 +466,6 @@ async def test_v1_none_corrections(responses: aioresponses) -> None:
             "config",
             METH_PUT,
             {"gpsMode": "always"},
-            202,
-        ),
-        (
-            lambda client: client.set_gps_interval(15),
-            "config",
-            METH_PUT,
-            {"gpsInterval": 15},
             202,
         ),
         (

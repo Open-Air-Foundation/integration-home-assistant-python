@@ -386,9 +386,6 @@ class _V1Config(DataClassORJSONMixin):
     gps_mode: GpsMode | None = field(
         default=None, metadata=field_options(alias="gpsMode")
     )
-    gps_interval: int | None = field(
-        default=None, metadata=field_options(alias="gpsInterval")
-    )
     front_led_brightness: int | None = field(
         default=None, metadata=field_options(alias="frontLedBrightness")
     )
@@ -420,7 +417,6 @@ class _V1Config(DataClassORJSONMixin):
             cloud_connection=self.cloud_connection,
             measurement_interval=self.measurement_interval,
             gps_mode=self.gps_mode,
-            gps_interval=self.gps_interval,
             front_led_brightness=self.front_led_brightness,
             back_led_brightness=self.back_led_brightness,
             touch_led_intensity=self.touch_led_intensity,

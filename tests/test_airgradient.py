@@ -333,7 +333,6 @@ async def test_setting_config(
         lambda client: client.set_cloud_connection(True),
         lambda client: client.set_measurement_interval(30),
         lambda client: client.set_gps_mode(GpsMode.TRACKING),
-        lambda client: client.set_gps_interval(15),
         lambda client: client.set_front_led_brightness(3),
         lambda client: client.set_back_led_brightness(2),
         lambda client: client.set_touch_led_intensity(1),

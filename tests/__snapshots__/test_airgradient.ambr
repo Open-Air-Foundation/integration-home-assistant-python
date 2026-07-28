@@ -10,7 +10,6 @@
     'country': 'DE',
     'display_brightness': 0,
     'front_led_brightness': None,
-    'gps_interval': None,
     'gps_mode': None,
     'led_bar_brightness': 100,
     'led_bar_mode': <LedBarMode.CO2: 'co2'>,
