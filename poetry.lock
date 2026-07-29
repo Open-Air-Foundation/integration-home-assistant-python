@@ -154,17 +154,17 @@ speedups = ["Brotli (>=1.2)", "aiodns (>=3.3.0)", "backports.zstd", "brotlicffi 
 
 [[package]]
 name = "aioresponses"
-version = "0.7.8"
+version = "0.7.9"
 description = "Mock out requests made by ClientSession from aiohttp package"
 optional = false
 python-versions = "*"
 files = [
-    {file = "aioresponses-0.7.8-py2.py3-none-any.whl", hash = "sha256:b73bd4400d978855e55004b23a3a84cb0f018183bcf066a85ad392800b5b9a94"},
-    {file = "aioresponses-0.7.8.tar.gz", hash = "sha256:b861cdfe5dc58f3b8afac7b0a6973d5d7b2cb608dd0f6253d16b8ee8eaf6df11"},
+    {file = "aioresponses-0.7.9-py2.py3-none-any.whl", hash = "sha256:94f9617f841c5bd7ee088ed783284f2cf4e6acc85d3933d92fc2fc7bd572a1b0"},
+    {file = "aioresponses-0.7.9.tar.gz", hash = "sha256:1dcfa28938fc006f046a98383a7c07ac180be7a492c1ed557f5cd7b0805357d3"},
 ]
 
 [package.dependencies]
-aiohttp = ">=3.3.0,<4.0.0"
+aiohttp = ">=3.8,<4.0"
 packaging = ">=22.0"
 
 [[package]]
@@ -2881,4 +2881,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "57762c8bacf764a412a5f5afca3323cfb29301628ae99242aad52792997dfaf8"
+content-hash = "75cb8d578038b2100e9dcdb7113fc7699ea1522c150173c8f5d2f8c147651b52"

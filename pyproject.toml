@@ -46,7 +46,7 @@ ruff = "0.15.12"
 safety = "3.7.0"
 yamllint = "1.38.0"
 syrupy = "5.1.0"
-aioresponses = "0.7.8"
+aioresponses = "0.7.9"
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/airgradienthq/python-airgradient/issues"
