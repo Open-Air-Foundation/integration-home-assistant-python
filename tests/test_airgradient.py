@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
@@ -179,6 +180,21 @@ async def test_config(
         body=load_fixture("config.json"),
     )
     assert await client.get_config() == snapshot
+
+
+async def test_config_with_null_led_bar_mode(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test config call when the device reports no LED bar mode."""
+    config = json.loads(load_fixture("config.json"))
+    config["ledBarMode"] = None
+    responses.get(
+        f"{MOCK_URL}/config",
+        status=200,
+        body=json.dumps(config),
+    )
+    assert (await client.get_config()).led_bar_mode is None
 
 
 @pytest.mark.parametrize(

@@ -108,7 +108,7 @@ class Config(DataClassORJSONMixin):
 
     country: str
     pm_standard: PmStandard = field(metadata=field_options(alias="pmStandard"))
-    led_bar_mode: LedBarMode = field(metadata=field_options(alias="ledBarMode"))
+    led_bar_mode: LedBarMode | None = field(metadata=field_options(alias="ledBarMode"))
     co2_automatic_baseline_calibration_days: int = field(
         metadata=field_options(alias="abcDays")
     )
