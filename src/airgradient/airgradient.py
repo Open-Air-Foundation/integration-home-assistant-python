@@ -230,7 +230,7 @@ class _V1Backend(_Backend):
 
 
 @dataclass(init=False)
-class AirGradientClient:
+class AirGradientClient:  # pylint: disable=too-many-public-methods
     """Main class for handling connections with AirGradient."""
 
     host: str

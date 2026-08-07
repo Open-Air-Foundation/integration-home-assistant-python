@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-from aiohttp import ClientSession
 import pytest
 
 from airgradient import AirGradientClient, AirGradientConnectionError, ApiVersion
 from tests.const import MOCK_HOST
+
+if TYPE_CHECKING:
+    from aiohttp import ClientSession
 
 
 class FakeResponse:
@@ -33,7 +35,7 @@ class FakeResponse:
         self.released = True
 
 
-class FakeSession:
+class FakeSession:  # pylint: disable=too-few-public-methods
     """Minimal aiohttp session double."""
 
     def __init__(self, response: FakeResponse) -> None:

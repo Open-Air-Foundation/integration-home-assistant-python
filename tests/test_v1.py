@@ -512,6 +512,7 @@ async def test_v1_none_corrections(responses: aioresponses) -> None:
         ),
     ],
 )
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 async def test_v1_operation_routing(
     responses: aioresponses,
     function: Callable[[AirGradientClient], Awaitable[None]],
