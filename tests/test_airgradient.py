@@ -3,21 +3,27 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import is_dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 from aiohttp import ClientError
-from aiohttp.hdrs import METH_PUT
+from aiohttp.hdrs import METH_GET, METH_PUT
 from aioresponses import CallbackResult, aioresponses
 import pytest
+from yarl import URL
 
 from airgradient import (
     AirGradientClient,
     AirGradientConnectionError,
     AirGradientError,
+    AirGradientNotSupportedError,
     AirGradientParseError,
+    ApiVersion,
     ConfigurationControl,
+    GpsMode,
     LedBarMode,
+    Measures,
     PmStandard,
     TemperatureUnit,
 )
@@ -30,6 +36,15 @@ if TYPE_CHECKING:
     from syrupy import SnapshotAssertion
 
 
+SERIAL_NUMBER = "84fce612f5b8"
+GENERIC_FIRMWARE_URL = (
+    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/os/firmware"
+)
+GO_FIRMWARE_URL = (
+    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/go/firmware"
+)
+
+
 async def test_putting_in_own_session(
     responses: aioresponses,
 ) -> None:
@@ -40,11 +55,10 @@ async def test_putting_in_own_session(
         body=load_fixture("current_measures.json"),
     )
     async with aiohttp.ClientSession() as session:
-        airgradient = AirGradientClient(session=session, host=MOCK_HOST)
-        await airgradient.get_current_measures()
-        assert airgradient.session is not None
-        assert not airgradient.session.closed
-        await airgradient.close()
+        async with AirGradientClient(session=session, host=MOCK_HOST) as airgradient:
+            await airgradient.get_current_measures()
+            assert airgradient.session is not None
+            assert not airgradient.session.closed
         assert not airgradient.session.closed
 
 
@@ -57,12 +71,20 @@ async def test_creating_own_session(
         status=200,
         body=load_fixture("current_measures.json"),
     )
-    airgradient = AirGradientClient(host=MOCK_HOST)
-    await airgradient.get_current_measures()
+    async with AirGradientClient(host=MOCK_HOST) as airgradient:
+        await airgradient.get_current_measures()
+        assert airgradient.session is not None
+        assert not airgradient.session.closed
     assert airgradient.session is not None
-    assert not airgradient.session.closed
-    await airgradient.close()
     assert airgradient.session.closed
+
+
+def test_client_retains_dataclass_behavior() -> None:
+    """Test compatibility with the previous dataclass client."""
+    client = AirGradientClient(MOCK_HOST)
+    replacement = replace(client, host="192.168.0.31")
+    assert is_dataclass(client)
+    assert replacement.host == "192.168.0.31"
 
 
 async def test_unexpected_server_response(
@@ -76,6 +98,7 @@ async def test_unexpected_server_response(
         headers={"Content-Type": "plain/text"},
         body="Yes",
     )
+    responses.get(f"{MOCK_URL}/api/v1/measures", status=404, body="Not found")
     with pytest.raises(AirGradientError):
         await client.get_current_measures()
 
@@ -97,6 +120,10 @@ async def test_unexpected_server_json_response(
     with pytest.raises(AirGradientParseError):
         await client.get_current_measures()
 
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("current_measures.json"),
+    )
     responses.get(
         f"{MOCK_URL}/config",
         callback=response_handler,
@@ -123,6 +150,7 @@ async def test_timeout(
     async with AirGradientClient(request_timeout=1, host=MOCK_HOST) as airgradient:
         with pytest.raises(AirGradientConnectionError):
             await airgradient.get_current_measures()
+    assert (METH_GET, URL(f"{MOCK_URL}/api/v1/measures")) not in responses.requests
 
 
 async def test_client_error(
@@ -141,6 +169,7 @@ async def test_client_error(
     )
     with pytest.raises(AirGradientConnectionError):
         await client.get_current_measures()
+    assert (METH_GET, URL(f"{MOCK_URL}/api/v1/measures")) not in responses.requests
 
 
 @pytest.mark.parametrize(
@@ -165,6 +194,46 @@ async def test_current_fixtures(
         body=load_fixture(fixture),
     )
     assert await client.get_current_measures() == snapshot
+    assert client.api_version is ApiVersion.LEGACY
+
+
+async def test_legacy_boot_count_fallback(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test legacy bootCount fallback for older devices."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("legacy_boot_count_only.json"),
+    )
+    measures = await client.get_current_measures()
+    assert measures.boot_time == 4
+
+
+async def test_legacy_requires_boot_or_boot_count(
+    responses: aioresponses,
+    client: AirGradientClient,
+) -> None:
+    """Test that legacy measures require one uptime field."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        payload={
+            "wifi": -52,
+            "serialno": "84fce612f5b8",
+            "firmware": "3.1.1",
+            "model": "I-9PSL",
+        },
+    )
+    with pytest.raises(AirGradientParseError):
+        await client.get_current_measures()
+
+
+def test_measures_retains_positional_identity_fields() -> None:
+    """Test compatibility with the previous positional constructor order."""
+    measures = Measures(None, "serial", 1, "firmware", "model")
+    assert measures.signal_strength is None
+    assert measures.serial_number == "serial"
+    assert measures.boot_time == 1
 
 
 async def test_config(
@@ -173,6 +242,11 @@ async def test_config(
     snapshot: SnapshotAssertion,
 ) -> None:
     """Test config call."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        status=200,
+        body=load_fixture("current_measures.json"),
+    )
     responses.get(
         f"{MOCK_URL}/config",
         status=200,
@@ -247,30 +321,105 @@ async def test_setting_config(
         body="Success",
         headers={"Content-Type": "plain/text"},
     )
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        status=200,
+        body=load_fixture("current_measures.json"),
+    )
     await function(client)
-    responses.assert_called_once_with(
+    responses.assert_called_with(
         f"{MOCK_URL}/config",
         METH_PUT,
         headers=HEADERS,
         json=expected_data,
     )
+    assert len(responses.requests[(METH_PUT, URL(f"{MOCK_URL}/config"))]) == 1
+
+
+@pytest.mark.parametrize(
+    "function",
+    [
+        lambda client: client.set_cloud_connection(True),
+        lambda client: client.set_measurement_interval(30),
+        lambda client: client.set_gps_mode(GpsMode.TRACKING),
+        lambda client: client.set_front_led_brightness(3),
+        lambda client: client.set_back_led_brightness(2),
+        lambda client: client.set_touch_led_intensity(1),
+        lambda client: client.set_buzzer_enabled(True),
+    ],
+)
+async def test_v1_config_not_supported_by_legacy(
+    responses: aioresponses,
+    client: AirGradientClient,
+    function: Callable[[AirGradientClient], Awaitable[None]],
+) -> None:
+    """Test that V1-only config is rejected by the legacy backend."""
+    responses.get(
+        f"{MOCK_URL}/measures/current",
+        body=load_fixture("current_measures.json"),
+    )
+    with pytest.raises(AirGradientNotSupportedError) as raised:
+        await function(client)
+
+    assert raised.value.status == 404
+    assert raised.value.code == "not_found"
+    assert (METH_PUT, URL(f"{MOCK_URL}/config")) not in responses.requests
 
 
 async def test_latest_version(
     responses: aioresponses, client: AirGradientClient, snapshot: SnapshotAssertion
 ) -> None:
-    """Test getting latest firmware version."""
+    """Test the legacy firmware version lookup without a model."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         status=200,
         body=load_fixture("version.json"),
     )
-    assert snapshot == await client.get_latest_firmware_version("84fce612f5b8")
+    assert snapshot == await client.get_latest_firmware_version(SERIAL_NUMBER)
     responses.assert_called_with(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         headers=HEADERS,
         json=None,
     )
+
+
+@pytest.mark.parametrize(
+    ("model", "firmware_url"),
+    [
+        ("P-1PSG", GO_FIRMWARE_URL),
+        ("P-1PSG-TEST", GO_FIRMWARE_URL),
+        ("I-9PSL", GENERIC_FIRMWARE_URL),
+        ("I-9PSL-DE", GENERIC_FIRMWARE_URL),
+        ("O-1PPT", GENERIC_FIRMWARE_URL),
+        ("O-1PST", GENERIC_FIRMWARE_URL),
+        ("DIY-PRO-4.3", GENERIC_FIRMWARE_URL),
+        ("ABC", GENERIC_FIRMWARE_URL),
+        ("", GENERIC_FIRMWARE_URL),
+        (None, GENERIC_FIRMWARE_URL),
+    ],
+)
+async def test_latest_version_for_model(
+    responses: aioresponses,
+    client: AirGradientClient,
+    model: str | None,
+    firmware_url: str,
+) -> None:
+    """Test selecting the firmware version URL for a device model."""
+    responses.get(
+        firmware_url,
+        status=200,
+        body=load_fixture("version.json"),
+    )
+
+    assert (
+        await client.get_latest_firmware_version(SERIAL_NUMBER, model=model) == "3.1.4"
+    )
+    responses.assert_called_with(
+        firmware_url,
+        headers=HEADERS,
+        json=None,
+    )
+    assert len(responses.requests[(METH_GET, URL(firmware_url))]) == 1
 
 
 async def test_version_parse_error(
@@ -279,9 +428,9 @@ async def test_version_parse_error(
 ) -> None:
     """Test version parse error."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         status=200,
         body="{}",
     )
     with pytest.raises(AirGradientParseError):
-        await client.get_latest_firmware_version("84fce612f5b8")
+        await client.get_latest_firmware_version(SERIAL_NUMBER)

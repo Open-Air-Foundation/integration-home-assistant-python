@@ -1,75 +1,55 @@
-"""Models for AirGradient."""
+"""Public models for AirGradient."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 
 from mashumaro import field_options
 from mashumaro.mixins.orjson import DataClassORJSONMixin
 
 
+class ApiVersion(IntEnum):
+    """AirGradient Local API version."""
+
+    LEGACY = 0
+    V1 = 1
+
+
 @dataclass
-class Measures(DataClassORJSONMixin):
+class Measures:
     """Measures model."""
 
-    signal_strength: int = field(metadata=field_options(alias="wifi"))
-    serial_number: str = field(metadata=field_options(alias="serialno"))
-    boot_time: int = field(metadata=field_options(alias="bootCount"))
-    firmware_version: str = field(metadata=field_options(alias="firmware"))
-    model: str = field(metadata=field_options(alias="model"))
+    signal_strength: int | None
+    serial_number: str
+    boot_time: int
+    firmware_version: str
+    model: str
     rco2: int | None = None
-    pm01: int | None = None
+    pm01: int | float | None = None
     pm02: float | None = None
-    raw_pm02: int | None = field(default=None, metadata=field_options(alias="pm02"))
-    compensated_pm02: float | None = field(
-        default=None, metadata=field_options(alias="pm02Compensated")
-    )
-    pm10: int | None = None
-    total_volatile_organic_component_index: int | None = field(
-        default=None, metadata=field_options(alias="tvocIndex")
-    )
-    raw_total_volatile_organic_component: float | None = field(
-        default=None, metadata=field_options(alias="tvocRaw")
-    )
-    pm003_count: int | None = field(
-        default=None, metadata=field_options(alias="pm003Count")
-    )
-    nitrogen_index: int | None = field(
-        default=None, metadata=field_options(alias="noxIndex")
-    )
-    raw_nitrogen: float | None = field(
-        default=None, metadata=field_options(alias="noxRaw")
-    )
-    ambient_temperature: float | None = field(
-        default=None, metadata=field_options(alias="atmp")
-    )
-    raw_ambient_temperature: float | None = field(
-        default=None, metadata=field_options(alias="atmp")
-    )
-    compensated_ambient_temperature: float | None = field(
-        default=None, metadata=field_options(alias="atmpCompensated")
-    )
-    raw_relative_humidity: float | None = field(
-        default=None, metadata=field_options(alias="rhum")
-    )
-    relative_humidity: float | None = field(
-        default=None, metadata=field_options(alias="rhum")
-    )
-    compensated_relative_humidity: float | None = field(
-        default=None, metadata=field_options(alias="rhumCompensated")
-    )
-
-    @classmethod
-    def __post_deserialize__(cls, obj: Measures) -> Measures:
-        """Post deserialize hook."""
-        if obj.compensated_ambient_temperature is not None:
-            obj.ambient_temperature = obj.compensated_ambient_temperature
-        if obj.compensated_relative_humidity is not None:
-            obj.relative_humidity = obj.compensated_relative_humidity
-        if obj.compensated_pm02 is not None:
-            obj.pm02 = obj.compensated_pm02
-        return obj
+    raw_pm02: int | float | None = None
+    compensated_pm02: float | None = None
+    pm10: int | float | None = None
+    total_volatile_organic_component_index: int | None = None
+    raw_total_volatile_organic_component: float | None = None
+    pm003_count: int | None = None
+    nitrogen_index: int | None = None
+    raw_nitrogen: float | None = None
+    ambient_temperature: float | None = None
+    raw_ambient_temperature: float | None = None
+    compensated_ambient_temperature: float | None = None
+    raw_relative_humidity: float | None = None
+    relative_humidity: float | None = None
+    compensated_relative_humidity: float | None = None
+    pm005_count: int | None = None
+    pm01_count: int | None = None
+    pm02_count: int | None = None
+    pm50_count: int | None = None
+    pm10_count: int | None = None
+    battery_percentage: int | None = None
+    battery_voltage: float | None = None
+    charge_voltage: float | None = None
 
 
 class PmStandard(StrEnum):
@@ -86,12 +66,21 @@ class TemperatureUnit(StrEnum):
     FAHRENHEIT = "f"
 
 
+class GpsMode(StrEnum):
+    """GPS operating mode."""
+
+    OFF = "off"
+    TRACKING = "tracking"
+    ALWAYS = "always"
+
+
 class ConfigurationControl(StrEnum):
     """Configuration control model."""
 
     CLOUD = "cloud"
     LOCAL = "local"
-    NOT_INITIALIZED = "both"
+    BOTH = "both"
+    NOT_INITIALIZED = BOTH
 
 
 class LedBarMode(StrEnum):
@@ -102,31 +91,86 @@ class LedBarMode(StrEnum):
     PM = "pm"
 
 
+class CorrectionAlgorithm(StrEnum):
+    """Measurement correction algorithm."""
+
+    NONE = "none"
+    EPA_2021 = "epa_2021"
+    CUSTOM_VIA_PM25_RAW = "custom_via_pm25_raw"
+    CUSTOM = "custom"
+
+
 @dataclass
-class Config(DataClassORJSONMixin):
+class CorrectionSlr:
+    """Linear correction parameters."""
+
+    intercept: float
+    scaling_factor: float
+
+
+@dataclass
+class Pm25CorrectionSlr(CorrectionSlr):
+    """PM2.5 linear correction parameters."""
+
+    use_epa_2021: bool
+
+
+@dataclass
+class Pm25Correction:
+    """PM2.5 correction settings."""
+
+    correction_algorithm: CorrectionAlgorithm
+    slr: Pm25CorrectionSlr | None
+
+
+@dataclass
+class TemperatureCorrection:
+    """Temperature correction settings."""
+
+    correction_algorithm: CorrectionAlgorithm
+    slr: CorrectionSlr | None
+
+
+@dataclass
+class HumidityCorrection:
+    """Humidity correction settings."""
+
+    correction_algorithm: CorrectionAlgorithm
+    slr: CorrectionSlr | None
+
+
+@dataclass
+class Corrections:
+    """Supported measurement corrections."""
+
+    pm25: Pm25Correction | None = None
+    temperature: TemperatureCorrection | None = None
+    humidity: HumidityCorrection | None = None
+
+
+@dataclass
+class Config:
     """Config model."""
 
-    country: str
-    pm_standard: PmStandard = field(metadata=field_options(alias="pmStandard"))
-    led_bar_mode: LedBarMode = field(metadata=field_options(alias="ledBarMode"))
-    co2_automatic_baseline_calibration_days: int = field(
-        metadata=field_options(alias="abcDays")
-    )
-    temperature_unit: TemperatureUnit = field(
-        metadata=field_options(alias="temperatureUnit")
-    )
-    configuration_control: ConfigurationControl = field(
-        metadata=field_options(alias="configurationControl")
-    )
-    post_data_to_airgradient: bool = field(
-        metadata=field_options(alias="postDataToAirGradient")
-    )
-    led_bar_brightness: int = field(metadata=field_options(alias="ledBarBrightness"))
-    display_brightness: int = field(metadata=field_options(alias="displayBrightness"))
-    nox_learning_offset: int = field(metadata=field_options(alias="noxLearningOffset"))
-    tvoc_learning_offset: int = field(
-        metadata=field_options(alias="tvocLearningOffset")
-    )
+    country: str | None = None
+    pm_standard: PmStandard | None = None
+    led_bar_mode: LedBarMode | None = None
+    co2_automatic_baseline_calibration_days: int | None = None
+    temperature_unit: TemperatureUnit | None = None
+    configuration_control: ConfigurationControl | None = None
+    post_data_to_airgradient: bool | None = None
+    led_bar_brightness: int | None = None
+    display_brightness: int | None = None
+    nox_learning_offset: int | None = None
+    tvoc_learning_offset: int | None = None
+    cloud_connection: bool | None = None
+    measurement_interval: int | None = None
+    gps_mode: GpsMode | None = None
+    front_led_brightness: int | None = None
+    back_led_brightness: int | None = None
+    touch_led_intensity: int | None = None
+    buzzer_enabled: bool | None = None
+    corrections: Corrections | None = None
 
 
 @dataclass
