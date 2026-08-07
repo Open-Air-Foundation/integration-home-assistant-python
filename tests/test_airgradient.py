@@ -36,6 +36,15 @@ if TYPE_CHECKING:
     from syrupy import SnapshotAssertion
 
 
+SERIAL_NUMBER = "84fce612f5b8"
+GENERIC_FIRMWARE_URL = (
+    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/os/firmware"
+)
+GO_FIRMWARE_URL = (
+    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/go/firmware"
+)
+
+
 async def test_putting_in_own_session(
     responses: aioresponses,
 ) -> None:
@@ -360,18 +369,57 @@ async def test_v1_config_not_supported_by_legacy(
 async def test_latest_version(
     responses: aioresponses, client: AirGradientClient, snapshot: SnapshotAssertion
 ) -> None:
-    """Test getting latest firmware version."""
+    """Test the legacy firmware version lookup without a model."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         status=200,
         body=load_fixture("version.json"),
     )
-    assert snapshot == await client.get_latest_firmware_version("84fce612f5b8")
+    assert snapshot == await client.get_latest_firmware_version(SERIAL_NUMBER)
     responses.assert_called_with(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         headers=HEADERS,
         json=None,
     )
+
+
+@pytest.mark.parametrize(
+    ("model", "firmware_url"),
+    [
+        ("P-1PSG", GO_FIRMWARE_URL),
+        ("P-1PSG-TEST", GO_FIRMWARE_URL),
+        ("I-9PSL", GENERIC_FIRMWARE_URL),
+        ("I-9PSL-DE", GENERIC_FIRMWARE_URL),
+        ("O-1PPT", GENERIC_FIRMWARE_URL),
+        ("O-1PST", GENERIC_FIRMWARE_URL),
+        ("DIY-PRO-4.3", GENERIC_FIRMWARE_URL),
+        ("ABC", GENERIC_FIRMWARE_URL),
+        ("", GENERIC_FIRMWARE_URL),
+        (None, GENERIC_FIRMWARE_URL),
+    ],
+)
+async def test_latest_version_for_model(
+    responses: aioresponses,
+    client: AirGradientClient,
+    model: str | None,
+    firmware_url: str,
+) -> None:
+    """Test selecting the firmware version URL for a device model."""
+    responses.get(
+        firmware_url,
+        status=200,
+        body=load_fixture("version.json"),
+    )
+
+    assert (
+        await client.get_latest_firmware_version(SERIAL_NUMBER, model=model) == "3.1.4"
+    )
+    responses.assert_called_with(
+        firmware_url,
+        headers=HEADERS,
+        json=None,
+    )
+    assert len(responses.requests[(METH_GET, URL(firmware_url))]) == 1
 
 
 async def test_version_parse_error(
@@ -380,9 +428,9 @@ async def test_version_parse_error(
 ) -> None:
     """Test version parse error."""
     responses.get(
-        "http://hw.airgradient.com/sensors/airgradient:84fce612f5b8/generic/os/firmware",
+        GENERIC_FIRMWARE_URL,
         status=200,
         body="{}",
     )
     with pytest.raises(AirGradientParseError):
-        await client.get_latest_firmware_version("84fce612f5b8")
+        await client.get_latest_firmware_version(SERIAL_NUMBER)

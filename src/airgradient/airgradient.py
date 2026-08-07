@@ -36,6 +36,7 @@ from .models import (
     VersionCheck,
 )
 from .parsers import parse_config_json, parse_measures_json
+from .util import get_model_name
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -553,10 +554,20 @@ class AirGradientClient:
         """Enable or disable the V1 buzzer."""
         await self._set_config("buzzer_enabled", enabled)
 
-    async def get_latest_firmware_version(self, serial_number: str) -> str:
-        """Get the latest firmware version from AirGradient."""
+    async def get_latest_firmware_version(
+        self,
+        serial_number: str,
+        *,
+        model: str | None = None,
+    ) -> str:
+        """Get the latest firmware version for an AirGradient model."""
+        if model is not None and get_model_name(model) == "AirGradient Go":
+            firmware_path = f"sensors/airgradient:{serial_number}/generic/go/firmware"
+        else:
+            firmware_path = f"sensors/airgradient:{serial_number}/generic/os/firmware"
+
         url = URL.build(scheme="http", host="hw.airgradient.com").joinpath(
-            f"sensors/airgradient:{serial_number}/generic/os/firmware"
+            firmware_path
         )
         response = await self._request(url)
         return _parse_response(
