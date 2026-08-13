@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass
 from importlib import metadata
 import socket
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from aiohttp import ClientError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
@@ -61,81 +61,23 @@ def _parse_response(body: str, parser: Callable[[str], _ModelT]) -> _ModelT:
         raise AirGradientParseError(msg) from err
 
 
-class _Backend:
-    """Base implementation shared by Local API backends."""
+@dataclass(frozen=True)
+class _Api:
+    """Routes and fields for an AirGradient Local API version."""
 
-    api_version: ClassVar[ApiVersion]
-    measures_path: ClassVar[str]
-    config_path: ClassVar[str]
-    config_status: ClassVar[int]
-    config_fields: ClassVar[dict[str, str]]
-
-    def __init__(self, client: AirGradientClient) -> None:
-        self._client = client
-
-    async def get_measures(self, *, detecting: bool = False) -> Measures:
-        """Get and normalize current measures."""
-        body = await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            self.measures_path,
-            api_version=self.api_version,
-            detecting=detecting,
-        )
-        return _parse_response(body, self._parse_measures)
-
-    async def get_config(self) -> Config:
-        """Get and normalize device config."""
-        body = await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            self.config_path,
-            api_version=self.api_version,
-        )
-        return _parse_response(body, self._parse_config)
-
-    async def set_config(self, field: str, value: Any) -> None:
-        """Set one normalized config field."""
-        wire_field = self.config_fields.get(field)
-        if wire_field is None:
-            raise AirGradientNotSupportedError(
-                status=404,
-                code="not_found",
-                message=f"{field} is not supported by the selected API",
-            )
-        await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            self.config_path,
-            method=METH_PUT,
-            data={wire_field: value},
-            expected_status=self.config_status,
-            api_version=self.api_version,
-        )
-
-    def _parse_measures(self, body: str) -> Measures:
-        """Parse a backend-specific measures response."""
-        raise NotImplementedError
-
-    def _parse_config(self, body: str) -> Config:
-        """Parse a backend-specific config response."""
-        raise NotImplementedError
-
-    async def request_co2_calibration(self) -> None:
-        """Request CO2 calibration."""
-        raise NotImplementedError
-
-    async def request_led_bar_test(self) -> None:
-        """Request an LED bar test."""
-        raise NotImplementedError
-
-    async def set_cloud_connection(self, enabled: bool) -> None:  # noqa: FBT001
-        """Set the product cloud connection."""
-        raise NotImplementedError
+    version: ApiVersion
+    measures_path: str
+    config_path: str
+    config_status: int
+    config_fields: dict[str, str]
 
 
-class _LegacyBackend(_Backend):
-    """Legacy AirGradient Local API backend."""
-
-    api_version = ApiVersion.LEGACY
-    measures_path = "measures/current"
-    config_path = "config"
-    config_status = 200
-    config_fields: ClassVar[dict[str, str]] = {
+_LEGACY_API = _Api(
+    version=ApiVersion.LEGACY,
+    measures_path="measures/current",
+    config_path="config",
+    config_status=200,
+    config_fields={
         "pm_standard": "pmStandard",
         "temperature_unit": "temperatureUnit",
         "configuration_control": "configurationControl",
@@ -146,47 +88,14 @@ class _LegacyBackend(_Backend):
         "co2_abc_days": "abcDays",
         "nox_learning_offset": "noxLearningOffset",
         "tvoc_learning_offset": "tvocLearningOffset",
-    }
-
-    def _parse_measures(self, body: str) -> Measures:
-        return parse_measures_json(body, api_version=self.api_version)
-
-    def _parse_config(self, body: str) -> Config:
-        return parse_config_json(body, api_version=self.api_version)
-
-    async def request_co2_calibration(self) -> None:
-        await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            self.config_path,
-            method=METH_PUT,
-            data={"co2CalibrationRequested": True},
-            api_version=self.api_version,
-        )
-
-    async def request_led_bar_test(self) -> None:
-        await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            self.config_path,
-            method=METH_PUT,
-            data={"ledBarTestRequested": True},
-            api_version=self.api_version,
-        )
-
-    async def set_cloud_connection(self, enabled: bool) -> None:  # noqa: FBT001
-        del enabled
-        raise AirGradientNotSupportedError(
-            status=404,
-            code="not_found",
-            message="Cloud connection is not supported by the legacy API",
-        )
-
-
-class _V1Backend(_Backend):
-    """Version 1 AirGradient Local API backend."""
-
-    api_version = ApiVersion.V1
-    measures_path = "api/v1/measures"
-    config_path = "api/v1/config"
-    config_status = 202
-    config_fields: ClassVar[dict[str, str]] = {
+    },
+)
+_V1_API = _Api(
+    version=ApiVersion.V1,
+    measures_path="api/v1/measures",
+    config_path="api/v1/config",
+    config_status=202,
+    config_fields={
         "pm_standard": "pmStandard",
         "temperature_unit": "temperatureUnit",
         "configuration_control": "configurationControl",
@@ -204,29 +113,8 @@ class _V1Backend(_Backend):
         "back_led_brightness": "backLedBrightness",
         "touch_led_intensity": "touchLedIntensity",
         "buzzer_enabled": "buzzerEnabled",
-    }
-
-    def _parse_measures(self, body: str) -> Measures:
-        return parse_measures_json(body, api_version=self.api_version)
-
-    def _parse_config(self, body: str) -> Config:
-        return parse_config_json(body, api_version=self.api_version)
-
-    async def _request_action(self, action: str) -> None:
-        await self._client._request_device(  # noqa: SLF001  # pylint: disable=protected-access
-            f"api/v1/actions/{action}",
-            method=METH_POST,
-            api_version=self.api_version,
-        )
-
-    async def request_co2_calibration(self) -> None:
-        await self._request_action("calibrate-co2")
-
-    async def request_led_bar_test(self) -> None:
-        await self._request_action("test-leds")
-
-    async def set_cloud_connection(self, enabled: bool) -> None:  # noqa: FBT001
-        await self.set_config("cloud_connection", enabled)
+    },
+)
 
 
 @dataclass(init=False)
@@ -248,7 +136,7 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
     ) -> None:
         """Initialize an AirGradient client.
 
-        The API version hint only changes probe order. A backend is selected after
+        The API version hint only changes probe order. An API is selected after
         its measures response succeeds and parses.
         """
         self.host = host
@@ -258,7 +146,7 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
         self._api_version_hint = (
             api_version if isinstance(api_version, ApiVersion) else None
         )
-        self._backend: _Backend | None = None
+        self._api: _Api | None = None
         self._detection_lock = asyncio.Lock()
         self._probe_measures: Measures | None = None
         self._probe_measures_pending = False
@@ -266,13 +154,13 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
     @property
     def api_version(self) -> ApiVersion | None:
         """Return the selected API version, or ``None`` before detection."""
-        if self._backend is None:
+        if self._api is None:
             return None
-        return self._backend.api_version
+        return self._api.version
 
     async def _request(  # noqa: PLR0913  # pylint: disable=too-many-arguments
         self,
-        url: URL,
+        path_or_url: str | URL,
         *,
         method: str = METH_GET,
         data: dict[str, Any] | None = None,
@@ -280,11 +168,16 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
         api_version: ApiVersion | None = None,
         detecting: bool = False,
     ) -> str:
-        """Perform one HTTP request and read its body within the timeout."""
+        """Request a device-relative path or absolute URL within the timeout."""
         headers = {
             "User-Agent": f"PythonAirGradient/{VERSION}",
             "Accept": "application/json",
         }
+        url = (
+            URL.build(scheme="http", host=self.host).joinpath(path_or_url)
+            if isinstance(path_or_url, str)
+            else path_or_url
+        )
 
         if self.session is None:
             self.session = ClientSession()
@@ -402,76 +295,78 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
             return True
         return body.lstrip().startswith(("{", "["))
 
-    async def _request_device(  # noqa: PLR0913  # pylint: disable=too-many-arguments
-        self,
-        uri: str,
-        *,
-        method: str = METH_GET,
-        data: dict[str, Any] | None = None,
-        expected_status: int = 200,
-        api_version: ApiVersion | None = None,
-        detecting: bool = False,
-    ) -> str:
-        """Perform a request against the device's fixed port 80 Local API."""
-        url = URL.build(scheme="http", host=self.host).joinpath(uri)
-        return await self._request(
-            url,
-            method=method,
-            data=data,
-            expected_status=expected_status,
-            api_version=api_version,
+    async def _get_measures(self, api: _Api, *, detecting: bool = False) -> Measures:
+        """Get current measures using a selected API definition."""
+        body = await self._request(
+            api.measures_path,
+            api_version=api.version,
             detecting=detecting,
         )
+        return parse_measures_json(body, api_version=api.version)
 
-    async def _ensure_backend(self) -> _Backend:
-        """Detect and retain one backend for this client lifetime."""
-        if self._backend is not None:
-            return self._backend
+    async def _ensure_api(self) -> _Api:
+        """Detect and retain one API definition for this client lifetime."""
+        if self._api is not None:
+            return self._api
 
         async with self._detection_lock:
-            if self._backend is not None:
-                return self._backend
+            if self._api is not None:
+                return self._api
 
             if self._api_version_hint is ApiVersion.V1:
-                candidates: tuple[type[_Backend], ...] = (_V1Backend, _LegacyBackend)
+                candidates = (_V1_API, _LEGACY_API)
             else:
-                candidates = (_LegacyBackend, _V1Backend)
+                candidates = (_LEGACY_API, _V1_API)
 
-            first_backend = candidates[0](self)
+            first_api = candidates[0]
             try:
-                measures = await first_backend.get_measures(detecting=True)
+                measures = await self._get_measures(first_api, detecting=True)
             except _BareRouteNotFoundError:
-                selected_backend = candidates[1](self)
-                measures = await selected_backend.get_measures()
+                selected_api = candidates[1]
+                measures = await self._get_measures(selected_api)
             else:
-                selected_backend = first_backend
+                selected_api = first_api
 
-            self._backend = selected_backend
+            self._api = selected_api
             self._probe_measures = measures
             self._probe_measures_pending = True
-            return selected_backend
+            return selected_api
 
     async def get_current_measures(self) -> Measures:
         """Get current measures from AirGradient."""
-        started_unselected = self._backend is None
-        backend = await self._ensure_backend()
+        started_unselected = self._api is None
+        api = await self._ensure_api()
         if started_unselected:
             self._probe_measures_pending = False
             return cast("Measures", self._probe_measures)
         if self._probe_measures_pending:
             self._probe_measures_pending = False
             return cast("Measures", self._probe_measures)
-        return await backend.get_measures()
+        return await self._get_measures(api)
 
     async def get_config(self) -> Config:
         """Get config from AirGradient device."""
-        backend = await self._ensure_backend()
-        return await backend.get_config()
+        api = await self._ensure_api()
+        body = await self._request(api.config_path, api_version=api.version)
+        return parse_config_json(body, api_version=api.version)
 
     async def _set_config(self, field: str, value: Any) -> None:
         """Set config on AirGradient device."""
-        backend = await self._ensure_backend()
-        await backend.set_config(field, value)
+        api = await self._ensure_api()
+        wire_field = api.config_fields.get(field)
+        if wire_field is None:
+            raise AirGradientNotSupportedError(
+                status=404,
+                code="not_found",
+                message=f"{field} is not supported by the selected API",
+            )
+        await self._request(
+            api.config_path,
+            method=METH_PUT,
+            data={wire_field: value},
+            expected_status=api.config_status,
+            api_version=api.version,
+        )
 
     async def set_pm_standard(self, pm_standard: PmStandard) -> None:
         """Set PM standard on AirGradient device."""
@@ -493,13 +388,37 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
 
     async def request_co2_calibration(self) -> None:
         """Request CO2 calibration on AirGradient device."""
-        backend = await self._ensure_backend()
-        await backend.request_co2_calibration()
+        api = await self._ensure_api()
+        if api.version is ApiVersion.V1:
+            await self._request(
+                "api/v1/actions/calibrate-co2",
+                method=METH_POST,
+                api_version=api.version,
+            )
+            return
+        await self._request(
+            api.config_path,
+            method=METH_PUT,
+            data={"co2CalibrationRequested": True},
+            api_version=api.version,
+        )
 
     async def request_led_bar_test(self) -> None:
         """Request LED bar test on AirGradient device."""
-        backend = await self._ensure_backend()
-        await backend.request_led_bar_test()
+        api = await self._ensure_api()
+        if api.version is ApiVersion.V1:
+            await self._request(
+                "api/v1/actions/test-leds",
+                method=METH_POST,
+                api_version=api.version,
+            )
+            return
+        await self._request(
+            api.config_path,
+            method=METH_PUT,
+            data={"ledBarTestRequested": True},
+            api_version=api.version,
+        )
 
     async def set_display_brightness(self, brightness: int) -> None:
         """Set display brightness on AirGradient device."""
@@ -527,8 +446,7 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
 
     async def set_cloud_connection(self, enabled: bool) -> None:  # noqa: FBT001
         """Enable or disable the V1 product cloud connection."""
-        backend = await self._ensure_backend()
-        await backend.set_cloud_connection(enabled)
+        await self._set_config("cloud_connection", enabled)
 
     async def set_measurement_interval(self, interval: int) -> None:
         """Set the V1 measurement interval in seconds."""
