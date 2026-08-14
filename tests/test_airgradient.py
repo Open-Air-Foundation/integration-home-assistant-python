@@ -47,7 +47,7 @@ GENERIC_FIRMWARE_URL = (
     f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/os/firmware"
 )
 GO_FIRMWARE_URL = (
-    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/go/firmware"
+    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/go/firmware"
 )
 
 
