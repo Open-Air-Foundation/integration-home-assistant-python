@@ -6,14 +6,16 @@ from typing import TYPE_CHECKING, TypeVar
 
 from mashumaro import MissingField
 
-from ._wire_models import (
-    parse_legacy_config,
-    parse_legacy_measures,
-    parse_v1_config,
-    parse_v1_measures,
-)
 from .exceptions import AirGradientParseError
-from .models import ApiVersion, Config, Measures
+from .models import (
+    ApiVersion,
+    Config,
+    Measures,
+    _parse_legacy_config,
+    _parse_legacy_measures,
+    _parse_v1_config,
+    _parse_v1_measures,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -21,6 +23,14 @@ if TYPE_CHECKING:
 
 _ModelT = TypeVar("_ModelT")
 _JsonData = str | bytes | bytearray
+_MEASURES_PARSERS: dict[ApiVersion, Callable[[_JsonData], Measures]] = {
+    ApiVersion.LEGACY: _parse_legacy_measures,
+    ApiVersion.V1: _parse_v1_measures,
+}
+_CONFIG_PARSERS: dict[ApiVersion, Callable[[_JsonData], Config]] = {
+    ApiVersion.LEGACY: _parse_legacy_config,
+    ApiVersion.V1: _parse_v1_config,
+}
 
 
 def _parse_json(data: _JsonData, parser: Callable[[_JsonData], _ModelT]) -> _ModelT:
@@ -34,13 +44,9 @@ def _parse_json(data: _JsonData, parser: Callable[[_JsonData], _ModelT]) -> _Mod
 
 def parse_measures_json(data: _JsonData, *, api_version: ApiVersion) -> Measures:
     """Deserialize measures using the selected Local API wire format."""
-    parser = (
-        parse_v1_measures if api_version is ApiVersion.V1 else parse_legacy_measures
-    )
-    return _parse_json(data, parser)
+    return _parse_json(data, _MEASURES_PARSERS[api_version])
 
 
 def parse_config_json(data: _JsonData, *, api_version: ApiVersion) -> Config:
     """Deserialize config using the selected Local API wire format."""
-    parser = parse_v1_config if api_version is ApiVersion.V1 else parse_legacy_config
-    return _parse_json(data, parser)
+    return _parse_json(data, _CONFIG_PARSERS[api_version])
