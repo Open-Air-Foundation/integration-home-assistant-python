@@ -480,7 +480,7 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
     ) -> str:
         """Get the latest firmware version for an AirGradient model."""
         if model is not None and get_model_name(model) == "AirGradient Go":
-            firmware_path = f"sensors/airgradient:{serial_number}/generic/go/firmware"
+            firmware_path = f"sensors/airgradient:{serial_number}/go/firmware"
         else:
             firmware_path = f"sensors/airgradient:{serial_number}/generic/os/firmware"
 
