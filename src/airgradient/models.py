@@ -89,6 +89,7 @@ class LedBarMode(StrEnum):
     OFF = "off"
     CO2 = "co2"
     PM = "pm"
+    IAQS = "iaqs"
 
 
 class CorrectionAlgorithm(StrEnum):
