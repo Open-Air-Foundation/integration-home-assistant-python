@@ -971,9 +971,7 @@ async def test_latest_version_for_model(
         body=load_fixture("version.txt"),
     )
 
-    assert (
-        await client.get_latest_firmware_version(model=model) == "3.1.4"
-    )
+    assert await client.get_latest_firmware_version(model=model) == "3.1.4"
     responses.assert_called_with(
         firmware_url,
         headers=HEADERS,

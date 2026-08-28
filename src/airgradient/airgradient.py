@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
 
 VERSION = metadata.version(__package__)
+
+
 class _BareRouteNotFoundError(Exception):
     """An unstructured HTTP 404 from an unknown route."""
 
