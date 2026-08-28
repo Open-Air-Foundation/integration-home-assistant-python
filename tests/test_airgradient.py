@@ -43,12 +43,8 @@ if TYPE_CHECKING:
 
 
 SERIAL_NUMBER = "84fce612f5b8"
-GENERIC_FIRMWARE_URL = (
-    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/generic/os/firmware"
-)
-GO_FIRMWARE_URL = (
-    f"http://hw.airgradient.com/sensors/airgradient:{SERIAL_NUMBER}/go/firmware"
-)
+GENERIC_FIRMWARE_URL = "https://api.airgradient.com/firmware/generic/current"
+GO_FIRMWARE_URL = "https://api.airgradient.com/firmware/go/current"
 
 
 def v1_client() -> AirGradientClient:
@@ -937,9 +933,9 @@ async def test_latest_version(
     responses.get(
         GENERIC_FIRMWARE_URL,
         status=200,
-        body=load_fixture("version.json"),
+        body=load_fixture("version.txt"),
     )
-    assert snapshot == await client.get_latest_firmware_version(SERIAL_NUMBER)
+    assert snapshot == await client.get_latest_firmware_version()
     responses.assert_called_with(
         GENERIC_FIRMWARE_URL,
         headers=HEADERS,
@@ -972,11 +968,11 @@ async def test_latest_version_for_model(
     responses.get(
         firmware_url,
         status=200,
-        body=load_fixture("version.json"),
+        body=load_fixture("version.txt"),
     )
 
     assert (
-        await client.get_latest_firmware_version(SERIAL_NUMBER, model=model) == "3.1.4"
+        await client.get_latest_firmware_version(model=model) == "3.1.4"
     )
     responses.assert_called_with(
         firmware_url,
@@ -994,7 +990,7 @@ async def test_version_parse_error(
     responses.get(
         GENERIC_FIRMWARE_URL,
         status=200,
-        body="{}",
+        body="   ",
     )
     with pytest.raises(AirGradientParseError):
-        await client.get_latest_firmware_version(SERIAL_NUMBER)
+        await client.get_latest_firmware_version()
