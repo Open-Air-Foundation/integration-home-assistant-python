@@ -175,13 +175,6 @@ class Config:
 
 
 @dataclass
-class VersionCheck(DataClassORJSONMixin):
-    """Version check model."""
-
-    target_version: str = field(metadata=field_options(alias="targetVersion"))
-
-
-@dataclass
 class _LegacyMeasures(DataClassORJSONMixin):
     """Legacy measures response."""
 

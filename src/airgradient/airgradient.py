@@ -6,11 +6,10 @@ import asyncio
 from dataclasses import dataclass
 from importlib import metadata
 import socket
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import ClientError, ClientSession
 from aiohttp.hdrs import METH_GET, METH_POST, METH_PUT
-from mashumaro import MissingField
 import orjson
 from yarl import URL
 
@@ -33,32 +32,19 @@ from .models import (
     Measures,
     PmStandard,
     TemperatureUnit,
-    VersionCheck,
 )
 from .parsers import parse_config_json, parse_measures_json
 from .util import get_model_name
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from typing_extensions import Self
 
 
 VERSION = metadata.version(__package__)
-_ModelT = TypeVar("_ModelT")
 
 
 class _BareRouteNotFoundError(Exception):
     """An unstructured HTTP 404 from an unknown route."""
-
-
-def _parse_response(body: str, parser: Callable[[str], _ModelT]) -> _ModelT:
-    """Parse a successful response into a normalized model."""
-    try:
-        return parser(body)
-    except (KeyError, MissingField, TypeError, ValueError) as err:
-        msg = "Unable to parse AirGradient response"
-        raise AirGradientParseError(msg) from err
 
 
 @dataclass(frozen=True)
@@ -474,24 +460,24 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
 
     async def get_latest_firmware_version(
         self,
-        serial_number: str,
         *,
         model: str | None = None,
     ) -> str:
         """Get the latest firmware version for an AirGradient model."""
         if model is not None and get_model_name(model) == "AirGradient Go":
-            firmware_path = f"sensors/airgradient:{serial_number}/go/firmware"
+            firmware_path = "firmware/go/current"
         else:
-            firmware_path = f"sensors/airgradient:{serial_number}/generic/os/firmware"
+            firmware_path = "firmware/generic/current"
 
-        url = URL.build(scheme="http", host="hw.airgradient.com").joinpath(
+        url = URL.build(scheme="https", host="api.airgradient.com").joinpath(
             firmware_path
         )
         response = await self._request(url)
-        return _parse_response(
-            response,
-            lambda body: VersionCheck.from_json(body).target_version,
-        )
+        version = response.strip()
+        if not version:
+            msg = "Unable to parse AirGradient response"
+            raise AirGradientParseError(msg)
+        return version
 
     async def close(self) -> None:
         """Close open client session."""
