@@ -24,6 +24,7 @@ from .exceptions import (
     AirGradientParseError,
 )
 from .models import (
+    AltitudeUnit,
     ApiVersion,
     Config,
     ConfigurationControl,
@@ -84,6 +85,7 @@ _V1_API = _Api(
     config_fields={
         "pm_standard": "pmStandard",
         "temperature_unit": "temperatureUnit",
+        "altitude_unit": "altitudeUnit",
         "configuration_control": "configurationControl",
         "led_bar_mode": "ledMode",
         "display_brightness": "displayBrightness",
@@ -361,6 +363,10 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
     async def set_temperature_unit(self, temperature_unit: TemperatureUnit) -> None:
         """Set temperature unit on AirGradient device."""
         await self._set_config("temperature_unit", temperature_unit)
+
+    async def set_altitude_unit(self, altitude_unit: AltitudeUnit) -> None:
+        """Set the V1 altitude unit."""
+        await self._set_config("altitude_unit", altitude_unit)
 
     async def set_configuration_control(
         self, configuration_control: ConfigurationControl

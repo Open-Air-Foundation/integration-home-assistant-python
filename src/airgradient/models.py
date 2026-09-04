@@ -66,6 +66,13 @@ class TemperatureUnit(StrEnum):
     FAHRENHEIT = "f"
 
 
+class AltitudeUnit(StrEnum):
+    """Altitude unit model."""
+
+    METERS = "m"
+    FEET = "ft"
+
+
 class GpsMode(StrEnum):
     """GPS operating mode."""
 
@@ -172,6 +179,7 @@ class Config:
     touch_led_intensity: int | None = None
     buzzer_enabled: bool | None = None
     corrections: Corrections | None = None
+    altitude_unit: AltitudeUnit | None = None
 
 
 @dataclass
@@ -508,6 +516,9 @@ class _V1Config(DataClassORJSONMixin):
     temperature_unit: TemperatureUnit | None = field(
         default=None, metadata=field_options(alias="temperatureUnit")
     )
+    altitude_unit: AltitudeUnit | None = field(
+        default=None, metadata=field_options(alias="altitudeUnit")
+    )
     configuration_control: ConfigurationControl | None = field(
         default=None, metadata=field_options(alias="configurationControl")
     )
@@ -557,6 +568,7 @@ class _V1Config(DataClassORJSONMixin):
             led_bar_mode=self.led_bar_mode,
             co2_automatic_baseline_calibration_days=self.abc_days,
             temperature_unit=self.temperature_unit,
+            altitude_unit=self.altitude_unit,
             configuration_control=self.configuration_control,
             post_data_to_airgradient=self.post_data,
             led_bar_brightness=self.led_bar_brightness,

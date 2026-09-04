@@ -24,6 +24,7 @@ from airgradient import (
     AirGradientInternalError,
     AirGradientNotSupportedError,
     AirGradientParseError,
+    AltitudeUnit,
     ApiVersion,
     ConfigurationControl,
     CorrectionAlgorithm,
@@ -485,6 +486,7 @@ async def test_setting_config(
 @pytest.mark.parametrize(
     "function",
     [
+        lambda client: client.set_altitude_unit(AltitudeUnit.METERS),
         lambda client: client.set_cloud_connection(True),
         lambda client: client.set_measurement_interval(30),
         lambda client: client.set_gps_mode(GpsMode.TRACKING),
@@ -608,6 +610,20 @@ async def test_v1_config_preserves_zero_values(responses: aioresponses) -> None:
     assert config.buzzer_enabled is False
 
 
+async def test_v1_config_rejects_invalid_altitude_unit(
+    responses: aioresponses,
+) -> None:
+    """Test unsupported V1 altitude units fail config parsing."""
+    add_v1_probe(responses)
+    responses.get(
+        f"{MOCK_URL}/api/v1/config",
+        payload={"altitudeUnit": "yards"},
+    )
+    async with v1_client() as airgradient:
+        with pytest.raises(AirGradientParseError):
+            await airgradient.get_config()
+
+
 async def test_v1_config_ignores_unknown_fields(responses: aioresponses) -> None:
     """Test forward-compatible additive config fields."""
     add_v1_probe(responses)
@@ -663,6 +679,13 @@ async def test_v1_additional_correction_algorithms(
 @pytest.mark.parametrize(
     ("function", "expected_path", "expected_method", "expected_data", "status"),
     [
+        (
+            lambda airgradient: airgradient.set_altitude_unit(AltitudeUnit.METERS),
+            "config",
+            METH_PUT,
+            {"altitudeUnit": "m"},
+            202,
+        ),
         (
             lambda airgradient: airgradient.set_temperature_unit(
                 TemperatureUnit.FAHRENHEIT
