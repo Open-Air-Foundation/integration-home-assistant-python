@@ -621,6 +621,65 @@ async def test_v1_config_ignores_unknown_fields(responses: aioresponses) -> None
     assert config.pm_standard is PmStandard.UGM3
 
 
+@pytest.mark.parametrize(
+    ("epa_fields", "expected"),
+    [
+        ({}, None),
+        ({"useEpa2021": None}, None),
+        ({"useEpa2021": False}, False),
+        ({"useEpa2021": True}, True),
+    ],
+)
+async def test_v1_pm25_correction_optional_epa_flag(
+    responses: aioresponses,
+    epa_fields: dict[str, bool | None],
+    *,
+    expected: bool | None,
+) -> None:
+    """Test device PM2.5 corrections with an omitted or explicit EPA flag."""
+    add_v1_probe(responses)
+    responses.get(
+        f"{MOCK_URL}/api/v1/config",
+        payload={
+            "pmStandard": "us-aqi",
+            "temperatureUnit": "f",
+            "altitudeUnit": "m",
+            "cloudConnection": True,
+            "configurationControl": "local",
+            "measurementInterval": 10,
+            "gpsMode": "tracking",
+            "frontLedBrightness": 0,
+            "backLedBrightness": 1,
+            "touchLedIntensity": 1,
+            "buzzerEnabled": False,
+            "co2AbcDays": 0,
+            "tvocLearningOffset": 12,
+            "noxLearningOffset": 12,
+            "corrections": {
+                "pm25": {
+                    "correctionAlgorithm": "custom_via_pm25_raw",
+                    "slr": {"intercept": 5, "scalingFactor": 2.227, **epa_fields},
+                },
+                "temperature": {"correctionAlgorithm": "none", "slr": None},
+                "humidity": {"correctionAlgorithm": "none", "slr": None},
+            },
+        },
+    )
+    async with v1_client() as airgradient:
+        config = await airgradient.get_config()
+
+    assert config.corrections is not None
+    assert config.corrections.pm25 is not None
+    assert (
+        config.corrections.pm25.correction_algorithm
+        is CorrectionAlgorithm.CUSTOM_VIA_PM25_RAW
+    )
+    assert config.corrections.pm25.slr is not None
+    assert config.corrections.pm25.slr.intercept == 5.0
+    assert config.corrections.pm25.slr.scaling_factor == 2.227
+    assert config.corrections.pm25.slr.use_epa_2021 is expected
+
+
 async def test_v1_additional_correction_algorithms(
     responses: aioresponses,
 ) -> None:

@@ -113,7 +113,7 @@ class CorrectionSlr:
 class Pm25CorrectionSlr(CorrectionSlr):
     """PM2.5 linear correction parameters."""
 
-    use_epa_2021: bool
+    use_epa_2021: bool | None = None
 
 
 @dataclass
@@ -408,7 +408,9 @@ class _CorrectionSlr:
 class _Pm25CorrectionSlr(_CorrectionSlr):
     """V1 PM2.5 linear correction parameters."""
 
-    use_epa_2021: bool = field(metadata=field_options(alias="useEpa2021"))
+    use_epa_2021: bool | None = field(
+        default=None, metadata=field_options(alias="useEpa2021")
+    )
 
     def normalize(self) -> Pm25CorrectionSlr:
         """Convert to normalized PM2.5 correction parameters."""
