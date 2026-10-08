@@ -13,6 +13,7 @@ from airgradient.exceptions import (
     AirGradientParseError,
 )
 from airgradient.models import (
+    AltitudeUnit,
     ApiVersion,
     Config,
     ConfigurationControl,
@@ -43,6 +44,7 @@ __all__ = [
     "AirGradientInternalError",
     "AirGradientNotSupportedError",
     "AirGradientParseError",
+    "AltitudeUnit",
     "ApiVersion",
     "Config",
     "ConfigurationControl",

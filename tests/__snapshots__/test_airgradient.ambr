@@ -1,6 +1,7 @@
 # serializer version: 1
 # name: test_config
   dict({
+    'altitude_unit': None,
     'back_led_brightness': None,
     'buzzer_enabled': None,
     'cloud_connection': None,
@@ -163,6 +164,7 @@
 # ---
 # name: test_v1_config_fixtures[config_go.json]
   dict({
+    'altitude_unit': <AltitudeUnit.FEET: 'ft'>,
     'back_led_brightness': 2,
     'buzzer_enabled': True,
     'cloud_connection': True,
@@ -206,6 +208,7 @@
 # ---
 # name: test_v1_config_fixtures[config_partial.json]
   dict({
+    'altitude_unit': None,
     'back_led_brightness': None,
     'buzzer_enabled': None,
     'cloud_connection': None,
