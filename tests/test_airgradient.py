@@ -1015,7 +1015,7 @@ async def test_latest_version(
     responses.get(
         GENERIC_FIRMWARE_URL,
         status=200,
-        body=load_fixture("version.txt"),
+        body=load_fixture("version.json"),
     )
     assert snapshot == await client.get_latest_firmware_version()
     responses.assert_called_with(
@@ -1050,7 +1050,7 @@ async def test_latest_version_for_model(
     responses.get(
         firmware_url,
         status=200,
-        body=load_fixture("version.txt"),
+        body=load_fixture("version.json"),
     )
 
     assert await client.get_latest_firmware_version(model=model) == "3.1.4"
@@ -1062,15 +1062,17 @@ async def test_latest_version_for_model(
     assert len(responses.requests[(METH_GET, URL(firmware_url))]) == 1
 
 
+@pytest.mark.parametrize("body", ["   ", '""'])
 async def test_version_parse_error(
     responses: aioresponses,
     client: AirGradientClient,
+    body: str,
 ) -> None:
-    """Test version parse error."""
+    """Test malformed JSON and responses without a nonempty version string."""
     responses.get(
         GENERIC_FIRMWARE_URL,
         status=200,
-        body="   ",
+        body=body,
     )
     with pytest.raises(AirGradientParseError):
         await client.get_latest_firmware_version()
