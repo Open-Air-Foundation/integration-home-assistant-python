@@ -479,9 +479,12 @@ class AirGradientClient:  # pylint: disable=too-many-public-methods
             firmware_path
         )
         response = await self._request(url)
-        version = response.strip()
+        msg = "Unable to parse AirGradient response"
+        try:
+            version: str = orjson.loads(response)  # pylint: disable=no-member
+        except orjson.JSONDecodeError as err:  # pylint: disable=no-member
+            raise AirGradientParseError(msg) from err
         if not version:
-            msg = "Unable to parse AirGradient response"
             raise AirGradientParseError(msg)
         return version
 
